@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exploration 3D — Moteur</title>
+
+    <!--
+        ============================================
+        PROJET : Exploration 3D pédagogique
+        OBJECTIF : Inspection visuelle et préparation procédurale
+        TECHNOLOGIE : model-viewer (Web Component Google)
+        ============================================
+    -->
+
+    <!-- Chargement de model-viewer depuis CDN -->
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+
+    <style>
+        /* ============================================
+           STYLES MINIMAUX
+           Priorité : lisibilité et compatibilité
+           ============================================ */
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #1a1a2e;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* En-tête simple */
+        header {
+            padding: 1rem;
+            background-color: #16213e;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 500;
+        }
+
+        header p {
+            font-size: 0.875rem;
+            color: #a0a0a0;
+            margin-top: 0.25rem;
+        }
+
+        /* Conteneur principal du viewer 3D */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+        }
+
+        /* Le composant model-viewer */
+        model-viewer {
+            width: 100%;
+            flex: 1;
+            min-height: 400px;
+            background-color: #0f0f23;
+            border-radius: 8px;
+            --poster-color: #0f0f23;
+        }
+
+        /* ============================================
+           HOTSPOTS
+           Points cliquables sur le modèle 3D
+           ============================================ */
+
+        .hotspot {
+            display: block;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: #4361ee;
+            border: 3px solid #ffffff;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .hotspot:hover {
+            transform: scale(1.2);
+        }
+
+        /* Annotation associée au hotspot */
+        .hotspot-annotation {
+            background-color: #16213e;
+            color: #ffffff;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            max-width: 200px;
+            line-height: 1.4;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            position: absolute;
+            transform: translateX(-50%);
+            margin-top: 8px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        /* Afficher l'annotation au survol/focus */
+        .hotspot:hover + .hotspot-annotation,
+        .hotspot:focus + .hotspot-annotation {
+            opacity: 1;
+        }
+
+        /* ============================================
+           BARRE DE CONTRÔLES
+           Actions simples et explicites
+           ============================================ */
+
+        .controls {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.25rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .btn-primary {
+            background-color: #4361ee;
+            color: #ffffff;
+        }
+
+        .btn-primary:hover {
+            background-color: #3651d4;
+        }
+
+        .btn-secondary {
+            background-color: #2d2d44;
+            color: #ffffff;
+        }
+
+        .btn-secondary:hover {
+            background-color: #3d3d5c;
+        }
+
+        /* ============================================
+           ÉTATS PROCÉDURAUX
+           Boutons de changement d'état du moteur
+           ============================================ */
+
+        .state-controls {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #16213e;
+            border-radius: 8px;
+        }
+
+        .state-controls-label {
+            width: 100%;
+            text-align: center;
+            font-size: 0.75rem;
+            color: #a0a0a0;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .btn-state {
+            padding: 0.875rem 1.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background-color: #2d2d44;
+            color: #ffffff;
+        }
+
+        .btn-state:hover {
+            background-color: #3d3d5c;
+            transform: translateY(-1px);
+        }
+
+        /* État actif */
+        .btn-state.active {
+            background-color: #4361ee;
+            border-color: #ffffff;
+            box-shadow: 0 4px 12px rgba(67, 97, 238, 0.4);
+        }
+
+        /* Indicateur d'étape */
+        .btn-state::before {
+            content: attr(data-step);
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            line-height: 20px;
+            text-align: center;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            font-size: 0.75rem;
+            margin-right: 0.5rem;
+        }
+
+        .btn-state.active::before {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Indicateur de chargement */
+        .loading-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(22, 33, 62, 0.9);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .loading-indicator.visible {
+            opacity: 1;
+        }
+
+        /* Conteneur model-viewer (pour positionnement indicateur) */
+        .viewer-container {
+            position: relative;
+            flex: 1;
+            display: flex;
+            min-height: 400px;
+        }
+
+        /* ============================================
+           PANNEAU D'INFORMATION
+           Texte explicatif pour l'apprenant
+           ============================================ */
+
+        .info-panel {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #16213e;
+            border-radius: 8px;
+            border-left: 4px solid #4361ee;
+        }
+
+        .info-panel h2 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-panel p {
+            font-size: 0.875rem;
+            color: #c0c0c0;
+            line-height: 1.5;
+        }
+
+        /* ============================================
+           PANNEAU PÉDAGOGIQUE
+           Consigne et objectif par état
+           ============================================ */
+
+        .pedagogy-panel {
+            margin-top: 1rem;
+            padding: 1.25rem;
+            background-color: #1a2744;
+            border-radius: 8px;
+            border: 1px solid #2d3d5c;
+        }
+
+        .pedagogy-panel .consigne {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #ffffff;
+            margin-bottom: 0.75rem;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .pedagogy-panel .consigne::before {
+            content: "📋";
+            position: absolute;
+            left: 0;
+        }
+
+        .pedagogy-panel .objectif {
+            font-size: 0.875rem;
+            color: #a0c4ff;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .pedagogy-panel .objectif::before {
+            content: "🎯";
+            position: absolute;
+            left: 0;
+        }
+
+        /* ============================================
+           HOTSPOTS AMÉLIORÉS
+           ============================================ */
+
+        .hotspot {
+            display: block;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background-color: #4361ee;
+            border: 3px solid #ffffff;
+            cursor: pointer;
+            transition: transform 0.2s ease, background-color 0.2s ease;
+            box-shadow: 0 2px 8px rgba(67, 97, 238, 0.5);
+        }
+
+        .hotspot:hover {
+            transform: scale(1.2);
+            background-color: #5a7fff;
+        }
+
+        .hotspot-annotation {
+            background-color: #16213e;
+            color: #ffffff;
+            padding: 1rem 1.25rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            max-width: 240px;
+            line-height: 1.5;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+            position: absolute;
+            transform: translateX(-50%);
+            margin-top: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            border: 1px solid #2d3d5c;
+        }
+
+        .hotspot-annotation strong {
+            color: #a0c4ff;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .hotspot:hover + .hotspot-annotation,
+        .hotspot:focus + .hotspot-annotation,
+        .hotspot-annotation.visible {
+            opacity: 1;
+        }
+
+        /* ============================================
+           RESPONSIVE
+           Adaptation mobile et tablette
+           ============================================ */
+
+        @media (max-width: 600px) {
+            header h1 {
+                font-size: 1rem;
+            }
+
+            .btn {
+                padding: 0.625rem 1rem;
+                font-size: 0.8125rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- En-tête du projet -->
+    <header>
+        <h1>Exploration 3D — Moteur</h1>
+        <p>Inspection visuelle et préparation procédurale</p>
+    </header>
+
+    <main>
+        <!--
+            ============================================
+            SÉLECTEUR D'ÉTATS PROCÉDURAUX
+
+            Principe pédagogique :
+            - Chaque état représente une étape de la procédure
+            - L'apprenant visualise le moteur à différents stades
+            - Pas de simulation de démontage, uniquement changement visuel
+            ============================================
+        -->
+        <div class="state-controls">
+            <span class="state-controls-label">États de la procédure</span>
+
+            <button class="btn-state active" data-state="A" data-step="1" aria-pressed="true">
+                Moteur complet
+            </button>
+
+            <button class="btn-state" data-state="B" data-step="2" aria-pressed="false">
+                Sans cache
+            </button>
+
+            <button class="btn-state" data-state="C" data-step="3" aria-pressed="false">
+                Moteur ouvert
+            </button>
+        </div>
+
+        <!--
+            ============================================
+            COMPOSANT MODEL-VIEWER
+
+            Attributs utilisés :
+            - src : chemin vers le fichier GLB (changé dynamiquement)
+            - alt : description accessible
+            - camera-controls : active rotation/zoom souris et tactile
+            - touch-action : gestion tactile optimisée
+            ============================================
+        -->
+        <div class="viewer-container">
+            <model-viewer
+                id="viewer"
+                src="assets/models/engine_full.glb"
+                alt="Modèle 3D d'un moteur pour exploration pédagogique"
+                camera-controls
+                touch-action="pan-y"
+                interaction-prompt="auto"
+                shadow-intensity="1"
+                exposure="1"
+            >
+                <!--
+                    HOTSPOTS DYNAMIQUES
+
+                    Les hotspots sont générés dynamiquement par JavaScript
+                    selon l'état procédural actif (A, B ou C).
+                    Les coordonnées sont définies dans ENGINE_STATES.
+                -->
+            </model-viewer>
+
+            <!-- Indicateur de chargement lors du changement d'état -->
+            <div class="loading-indicator" id="loading">
+                Chargement...
+            </div>
+        </div>
+
+        <!-- Barre de contrôles -->
+        <div class="controls">
+            <!-- Bouton de recentrage de la vue -->
+            <button class="btn btn-primary" id="btn-reset" aria-label="Recentrer la vue">
+                Recentrer la vue
+            </button>
+
+            <!-- Bouton pour activer/désactiver la rotation automatique -->
+            <button class="btn btn-secondary" id="btn-rotate" aria-label="Rotation automatique">
+                Rotation auto
+            </button>
+        </div>
+
+        <!-- Panneau pédagogique (consigne + objectif) -->
+        <div class="pedagogy-panel">
+            <p class="consigne" id="consigne">
+                Observez le moteur assemblé. Repérez les éléments accessibles sans démontage.
+            </p>
+            <p class="objectif" id="objectif">
+                Identifier les composants externes et leur position relative.
+            </p>
+        </div>
+
+        <!-- Panneau d'information générale -->
+        <div class="info-panel">
+            <h2>Navigation</h2>
+            <p>
+                Utilisez la souris ou vos doigts pour faire pivoter le modèle et zoomer.
+                Cliquez sur les points bleus pour afficher des informations sur les composants.
+            </p>
+        </div>
+    </main>
+
+    <!--
+        ============================================
+        SCRIPTS
+        JavaScript minimal pour les interactions de base
+        ============================================
+    -->
+    <script>
+        // ============================================
+        // CONFIGURATION DES ÉTATS PROCÉDURAUX
+        // ============================================
+
+        /**
+         * Définition des états du moteur
+         *
+         * Chaque état correspond à :
+         * - un fichier GLB distinct
+         * - une description pédagogique
+         * - des informations pour l'apprenant
+         *
+         * Pour ajouter un état : ajouter une entrée ici
+         * et un bouton correspondant dans le HTML
+         */
+        const ENGINE_STATES = {
+            A: {
+                id: 'A',
+                name: 'Moteur complet',
+                glb: 'assets/models/engine_full.glb',
+                consigne: 'Observez le moteur assemblé. Repérez les éléments accessibles sans démontage.',
+                objectif: 'Identifier les composants externes et leur position relative.',
+                hotspots: [
+                    {
+                        id: 'filtre-air',
+                        position: '0.05m 0.15m 0.1m',
+                        normal: '0 1 0',
+                        title: 'Filtre à air',
+                        text: 'Point d\'entrée de l\'air. Vérifier son état avant toute intervention.'
+                    },
+                    {
+                        id: 'cache-culbuteurs',
+                        position: '0m 0.1m 0m',
+                        normal: '0 1 0',
+                        title: 'Cache culbuteurs',
+                        text: 'Protège la culasse. Doit être retiré pour accéder aux soupapes.'
+                    }
+                ]
+            },
+            B: {
+                id: 'B',
+                name: 'Sans cache',
+                glb: 'assets/models/engine_no_cover.glb',
+                consigne: 'Le cache est retiré. Identifiez les organes internes désormais visibles.',
+                objectif: 'Comprendre l\'agencement de la distribution en partie haute.',
+                hotspots: [
+                    {
+                        id: 'arbre-cames',
+                        position: '0m 0.08m 0m',
+                        normal: '0 1 0',
+                        title: 'Arbre à cames',
+                        text: 'Commande l\'ouverture des soupapes. Observer l\'état des cames.'
+                    },
+                    {
+                        id: 'cables-allumage',
+                        position: '0.08m 0.05m 0.05m',
+                        normal: '1 0 0',
+                        title: 'Câbles d\'allumage',
+                        text: 'Relient la bobine aux bougies. Vérifier l\'ordre de connexion.'
+                    }
+                ]
+            },
+            C: {
+                id: 'C',
+                name: 'Moteur ouvert',
+                glb: 'assets/models/engine_open.glb',
+                consigne: 'Le cache de distribution est retiré. Observez la transmission du mouvement.',
+                objectif: 'Visualiser la liaison entre vilebrequin et arbre à cames.',
+                hotspots: [
+                    {
+                        id: 'chaine-distribution',
+                        position: '-0.1m 0.05m 0m',
+                        normal: '-1 0 0',
+                        title: 'Chaîne de distribution',
+                        text: 'Synchronise le vilebrequin et l\'arbre à cames. Vérifier la tension.'
+                    },
+                    {
+                        id: 'pignon-distribution',
+                        position: '-0.08m 0m 0m',
+                        normal: '-1 0 0',
+                        title: 'Pignon de distribution',
+                        text: 'Transmet le mouvement. Inspecter l\'usure des dents.'
+                    }
+                ]
+            }
+        };
+
+        // État actuel (initialisé à A)
+        let currentState = 'A';
+
+        // ============================================
+        // ÉLÉMENTS DU DOM
+        // ============================================
+
+        const viewer = document.getElementById('viewer');
+        const btnReset = document.getElementById('btn-reset');
+        const btnRotate = document.getElementById('btn-rotate');
+        const loadingIndicator = document.getElementById('loading');
+        const consigneElement = document.getElementById('consigne');
+        const objectifElement = document.getElementById('objectif');
+        const stateButtons = document.querySelectorAll('.btn-state');
+
+        // État de la rotation automatique
+        let autoRotateEnabled = false;
+
+        // ============================================
+        // GESTION DES HOTSPOTS DYNAMIQUES
+        // ============================================
+
+        /**
+         * Supprime tous les hotspots existants du viewer
+         */
+        function clearHotspots() {
+            const existingHotspots = viewer.querySelectorAll('.hotspot, .hotspot-annotation');
+            existingHotspots.forEach(el => el.remove());
+        }
+
+        /**
+         * Crée les hotspots pour l'état donné
+         *
+         * @param {string} stateId - L'identifiant de l'état (A, B, C)
+         */
+        function createHotspots(stateId) {
+            const state = ENGINE_STATES[stateId];
+            if (!state || !state.hotspots) return;
+
+            state.hotspots.forEach(hotspot => {
+                // Créer le bouton hotspot
+                const button = document.createElement('button');
+                button.className = 'hotspot';
+                button.slot = `hotspot-${hotspot.id}`;
+                button.dataset.position = hotspot.position;
+                button.dataset.normal = hotspot.normal;
+                button.setAttribute('aria-label', hotspot.title);
+
+                // Créer l'annotation
+                const annotation = document.createElement('div');
+                annotation.className = 'hotspot-annotation';
+                annotation.slot = `hotspot-${hotspot.id}`;
+                annotation.innerHTML = `<strong>${hotspot.title}</strong>${hotspot.text}`;
+
+                // Gestion du clic pour mobile
+                button.addEventListener('click', () => {
+                    // Fermer les autres annotations
+                    viewer.querySelectorAll('.hotspot-annotation').forEach(a => {
+                        a.classList.remove('visible');
+                    });
+                    // Ouvrir/fermer celle-ci
+                    annotation.classList.toggle('visible');
+                });
+
+                // Ajouter au viewer
+                viewer.appendChild(button);
+                viewer.appendChild(annotation);
+            });
+        }
+
+        /**
+         * Met à jour le panneau pédagogique
+         *
+         * @param {string} stateId - L'identifiant de l'état
+         */
+        function updatePedagogyPanel(stateId) {
+            const state = ENGINE_STATES[stateId];
+            if (!state) return;
+
+            consigneElement.textContent = state.consigne;
+            objectifElement.textContent = state.objectif;
+        }
+
+        // ============================================
+        // GESTION DES ÉTATS PROCÉDURAUX
+        // ============================================
+
+        /**
+         * Change l'état du moteur affiché
+         *
+         * @param {string} stateId - Identifiant de l'état (A, B, C)
+         *
+         * Fonctionnement :
+         * 1. Affiche l'indicateur de chargement
+         * 2. Change la source du model-viewer
+         * 3. Met à jour l'interface (bouton actif, description)
+         * 4. Masque l'indicateur quand le modèle est chargé
+         */
+        function changeState(stateId) {
+            // Vérifier que l'état existe
+            if (!ENGINE_STATES[stateId]) {
+                console.error('État inconnu:', stateId);
+                return;
+            }
+
+            // Ne rien faire si c'est déjà l'état actuel
+            if (stateId === currentState) {
+                return;
+            }
+
+            const newState = ENGINE_STATES[stateId];
+
+            // Afficher l'indicateur de chargement
+            loadingIndicator.classList.add('visible');
+
+            // Changer la source du modèle 3D
+            // C'est la seule ligne qui effectue le "changement d'état" visuel
+            viewer.src = newState.glb;
+
+            // Mettre à jour l'état courant
+            currentState = stateId;
+
+            // Mettre à jour l'interface
+            updateStateUI(stateId);
+
+            // Mettre à jour le panneau pédagogique
+            updatePedagogyPanel(stateId);
+
+            // Mettre à jour les hotspots (après chargement du modèle)
+            clearHotspots();
+
+            console.log('Changement d\'état:', newState.name);
+        }
+
+        /**
+         * Met à jour l'apparence des boutons d'état
+         *
+         * @param {string} activeStateId - L'état actuellement actif
+         */
+        function updateStateUI(activeStateId) {
+            stateButtons.forEach(btn => {
+                const btnState = btn.dataset.state;
+                const isActive = btnState === activeStateId;
+
+                // Mettre à jour les classes CSS
+                btn.classList.toggle('active', isActive);
+
+                // Mettre à jour l'attribut d'accessibilité
+                btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            });
+        }
+
+        // ============================================
+        // ÉCOUTEURS D'ÉVÉNEMENTS - ÉTATS
+        // ============================================
+
+        // Attacher un écouteur à chaque bouton d'état
+        stateButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const stateId = btn.dataset.state;
+                changeState(stateId);
+            });
+        });
+
+        // Masquer l'indicateur de chargement et créer les hotspots quand le modèle est prêt
+        viewer.addEventListener('load', () => {
+            loadingIndicator.classList.remove('visible');
+
+            // Créer les hotspots pour l'état actuel
+            createHotspots(currentState);
+
+            console.log('Modèle chargé:', ENGINE_STATES[currentState].name);
+        });
+
+        // Gérer les erreurs de chargement
+        viewer.addEventListener('error', (event) => {
+            loadingIndicator.textContent = 'Erreur de chargement';
+            console.error('Erreur de chargement du modèle:', event);
+        });
+
+        // ============================================
+        // CONTRÔLES DE VUE
+        // ============================================
+
+        /**
+         * RECENTRAGE DE LA VUE
+         * Remet la caméra à sa position initiale
+         */
+        btnReset.addEventListener('click', () => {
+            viewer.cameraOrbit = 'auto auto auto';
+            viewer.cameraTarget = 'auto auto auto';
+            viewer.fieldOfView = 'auto';
+        });
+
+        /**
+         * ROTATION AUTOMATIQUE
+         * Active ou désactive la rotation continue du modèle
+         */
+        btnRotate.addEventListener('click', () => {
+            autoRotateEnabled = !autoRotateEnabled;
+
+            if (autoRotateEnabled) {
+                viewer.setAttribute('auto-rotate', '');
+                btnRotate.textContent = 'Arrêter rotation';
+                btnRotate.classList.remove('btn-secondary');
+                btnRotate.classList.add('btn-primary');
+            } else {
+                viewer.removeAttribute('auto-rotate');
+                btnRotate.textContent = 'Rotation auto';
+                btnRotate.classList.remove('btn-primary');
+                btnRotate.classList.add('btn-secondary');
+            }
+        });
+
+        // ============================================
+        // INITIALISATION
+        // ============================================
+
+        // Mettre à jour le panneau pédagogique initial
+        updatePedagogyPanel(currentState);
+
+        // Les hotspots seront créés automatiquement au chargement du modèle
+        // via l'événement 'load' du viewer
+
+        console.log('Exploration 3D — Moteur : Application chargée');
+        console.log('États disponibles:', Object.keys(ENGINE_STATES).join(', '));
+    </script>
+
+</body>
+</html>

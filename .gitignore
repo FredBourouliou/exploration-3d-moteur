@@ -1,0 +1,86 @@
+# ===================
+# OS generated files
+# ===================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ===================
+# IDE / Editors
+# ===================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# ===================
+# Blender
+# ===================
+*.blend1
+*.blend2
+*.blend3
+*.blend4
+*.blend5
+crash.txt
+*.crash.txt
+
+# ===================
+# Node.js (si utilisé)
+# ===================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+
+# ===================
+# Build / Temp
+# ===================
+dist/
+build/
+tmp/
+temp/
+.cache/
+*.log
+
+# ===================
+# Fichiers 3D volumineux (optionnel)
+# ===================
+# Décommenter si vous ne voulez pas versionner les GLB volumineux
+# *.glb
+# *.gltf
+
+# Fichiers sources Blender volumineux (optionnel)
+# Décommenter si vous stockez les .blend ailleurs (LFS, drive, etc.)
+# *.blend
+
+# ===================
+# Environnement
+# ===================
+.env
+.env.local
+.env.*.local
+
+# ===================
+# Claude Code
+# ===================
+claude.md
+CLAUDE.md
+
+# ===================
+# Divers
+# ===================
+*.bak
+*.backup
+*.orig
+# Ignorer aussi .claude
+.claude/
