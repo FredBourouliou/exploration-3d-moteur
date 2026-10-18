@@ -1,101 +1,36 @@
-# Exploration 3D Pédagogique — Moteur (GLB + model-viewer)
+# Engine exploration — 3D procedure walkthrough
 
-Outil d'exploration 3D pédagogique permettant l'inspection interactive de composants mécaniques en vue d'une préparation procédurale avant manipulation réelle.
+**A step-by-step 3D walkthrough of an engine disassembly, in the browser.** Each step removes a part of the engine and comes with an instruction, a learning objective and hotspots on the components that matter at that stage — so trainees arrive at the workshop already knowing what they'll see.
 
-## Objectif
+**[▶ Live demo](https://fredbourouliou.github.io/exploration-3d-moteur/)** · UI in French
 
-Permettre aux apprenants de :
-- Inspecter librement un moteur et ses sous-ensembles
-- Isoler des pièces ou groupes de pièces
-- Comprendre la structure et l'ordre procédural
-- Se préparer cognitivement avant manipulation en atelier
+<p align="center">
+  <img src="screenshots/procedure.png" alt="Step 2 of the procedure: cover removed, hotspot and instruction panel" width="90%">
+</p>
 
-> **Note :** Cet outil est un dispositif de visualisation interactive, pas une simulation gestuelle ou mécanique.
+## What it does
 
-## Fonctionnalités
+- **3 procedure steps**, one GLB each: full engine → cover removed → timing side open.
+- **Per-step instruction and objective** ("The cover is removed. Identify the internal parts now visible.").
+- **Hotspots generated per step** from a single config object: position, normal, title, short technical note.
+- Orbit, zoom, re-center, auto-rotate; **AR** on phones (WebXR, Scene Viewer, Quick Look) and the Meta Quest browser.
 
-- Affichage de modèles 3D (format GLB)
-- Rotation libre (souris / tactile / contrôleurs VR)
-- Zoom / dézoom
-- Recentrage de la vue
-- Isolation de sous-ensembles
-- Vue éclatée
-- Hotspots cliquables avec informations techniques
+It is a visualisation aid, not a mechanical simulation: nothing to grab or unscrew, by design.
 
-## Stack technique
+## How it's built
 
-| Composant | Technologie |
-|-----------|-------------|
-| Viewer 3D | `<model-viewer>` (Web Component) |
-| Format 3D | GLB (Blender / photogrammétrie) |
-| Interface | HTML / CSS / JavaScript |
-
-## Plateformes cibles
-
-- Desktop (navigateur web)
-- Mobile (navigateur web)
-- Meta Quest (navigateur VR)
-
-## Structure du projet
-
-```
-/
-├── README.md           # Ce fichier
-├── claude.md           # Spécifications du projet
-├── index.html          # Page principale
-├── assets/
-│   ├── models/         # Fichiers GLB
-│   ├── images/         # Images et icônes
-│   └── styles/         # Feuilles de style CSS
-├── js/                 # Scripts JavaScript
-└── blender/            # Fichiers sources Blender
-```
-
-## Installation
-
-1. Cloner le dépôt
-2. Servir les fichiers via un serveur HTTP local
+- One `index.html` with [`<model-viewer>`](https://modelviewer.dev/) and vanilla JS — no framework, no build step.
+- Steps and hotspots live in one `ENGINE_STATES` object, so adding a step means one GLB and one entry.
+- [`scripts/export_states.py`](scripts/export_states.py) exports every step from the Blender file in one headless run.
 
 ```bash
-# Avec Python
-python -m http.server 8000
-
-# Avec Node.js (npx)
-npx serve
+python3 -m http.server 8000   # then open http://localhost:8000
 ```
 
-3. Ouvrir `http://localhost:8000` dans le navigateur
+## Related
 
-## Modèles 3D
+[hemi-engine-ar](https://github.com/FredBourouliou/hemi-engine-ar) — the same engine as a guided inspection module with 5 phases and AR placement.
 
-### Organisation recommandée (Multi-GLB)
+## License
 
-Chaque état du moteur correspond à un fichier GLB distinct :
-- `engine_full.glb` — Moteur complet
-- `engine_no_cover.glb` — Sans capot
-- `engine_no_belt.glb` — Sans courroie
-- etc.
-
-### Contraintes sur les GLB
-
-- Échelle cohérente entre les fichiers
-- Orientation stable
-- Groupes fonctionnels nommés clairement
-- Optimisation du poids (compression, LOD si nécessaire)
-
-## Compatibilité VR
-
-L'application fonctionne en mode VR immersif via le navigateur Meta Quest.
-Les contrôleurs permettent la rotation et le zoom du modèle.
-
-## Public cible
-
-Formation professionnelle : maintenance, technique, véhicules électriques.
-
-## Licence
-
-À définir.
-
----
-
-*Projet développé dans un cadre de formation professionnelle.*
+Code under the [MIT License](LICENSE).
